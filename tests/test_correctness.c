@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-void     gf2_xor_scalar(uint64_t *, const uint64_t *, size_t);
-uint64_t gf2_inner_scalar(const uint64_t *, const uint64_t *, size_t);
-uint64_t gf2_weight_scalar(const uint64_t *, size_t);
+void     SYSV_ABI gf2_xor_scalar(uint64_t *, const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_inner_scalar(const uint64_t *, const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_weight_scalar(const uint64_t *, size_t);
 
 static uint64_t rng_state = 0x243F6A8885A308D3ull;
 static uint64_t xrng(void) {

@@ -18,14 +18,29 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
+/* Calling-convention shim.
+ *
+ * The hand-written x86-64 kernels in src/gf2_x86.S use the System V AMD64 ABI
+ * (args in rdi/rsi/rdx). On Windows the default C ABI is Microsoft x64
+ * (rcx/rdx/r8), so the per-core kernels — and every pointer/declaration that
+ * refers to them — must be tagged so the compiler emits SysV-convention calls
+ * that match the assembly. Everywhere else (Linux, macOS, aarch64) the default
+ * already is SysV / AAPCS64, so this expands to nothing.
+ *
+ * Only the low-level kernels (gf2_{xor,inner,weight}_*) carry SYSV_ABI. The
+ * public API (sk_*, gf2_matmul, gf2_rank, stabkernel_*, ...) keeps the native
+ * ABI so ctypes and external C callers bind to it normally.
+ *
+ * Define STABKERNEL_FORCE_SYSV_ABI to force the attribute on for testing the
+ * ABI consistency on a non-Windows x86-64 host. */
+#if defined(STABKERNEL_FORCE_SYSV_ABI) || (defined(_WIN32) && defined(__x86_64__))
+#  define SYSV_ABI __attribute__((sysv_abi))
+#else
+#  define SYSV_ABI
 #endif
 
-#if defined(_WIN32) && (defined(__x86_64__) || defined(_M_X64)) && (defined(__GNUC__) || defined(__clang__))
-#define SYSV_ABI __attribute__((sysv_abi))
-#else
-#define SYSV_ABI
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /* dst[i] ^= src[i] for i in [0,nwords). The GF(2) row-add / tableau
@@ -35,7 +50,7 @@ typedef void (SYSV_ABI *gf2_xor_fn)(uint64_t *dst, const uint64_t *src, size_t n
 /* Returns the GF(2) inner product <a,b> = parity( popcount(a[i] & b[i]) ),
  * i.e. 0 or 1. The symplectic/stabilizer commutation primitive. */
 typedef uint64_t (SYSV_ABI *gf2_inner_fn)(const uint64_t *a, const uint64_t *b,
-                                 size_t nwords);
+                                          size_t nwords);
 
 /* Returns the full Hamming weight sum_i popcount(a[i]). Used for Pauli
  * weight and stabilizer-Renyi / magic statistics. */

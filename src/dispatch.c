@@ -5,9 +5,9 @@
 #include <string.h>
 
 /* ---- scalar (always present) ---- */
-void     gf2_xor_scalar(uint64_t *, const uint64_t *, size_t);
-uint64_t gf2_inner_scalar(const uint64_t *, const uint64_t *, size_t);
-uint64_t gf2_weight_scalar(const uint64_t *, size_t);
+void     SYSV_ABI gf2_xor_scalar(uint64_t *, const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_inner_scalar(const uint64_t *, const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_weight_scalar(const uint64_t *, size_t);
 
 #if defined(__x86_64__)
 void     SYSV_ABI gf2_xor_avx2(uint64_t *, const uint64_t *, size_t);
@@ -18,9 +18,9 @@ uint64_t SYSV_ABI gf2_weight_avx2(const uint64_t *, size_t);
 uint64_t SYSV_ABI gf2_weight_avx512(const uint64_t *, size_t);
 #elif defined(__aarch64__)
 /* AArch64 / Apple-Silicon / Android-arm64 NEON backend (src/gf2_arm.S). */
-void     gf2_xor_neon(uint64_t *, const uint64_t *, size_t);
-uint64_t gf2_inner_neon(const uint64_t *, const uint64_t *, size_t);
-uint64_t gf2_weight_neon(const uint64_t *, size_t);
+void     SYSV_ABI gf2_xor_neon(uint64_t *, const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_inner_neon(const uint64_t *, const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_weight_neon(const uint64_t *, size_t);
 #endif
 
 gf2_xor_fn    gf2_xor    = gf2_xor_scalar;
