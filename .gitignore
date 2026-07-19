@@ -1,0 +1,6 @@
+*.so
+*.o
+test_correctness
+bench_run
+bench/benchmark.png
+__pycache__/
