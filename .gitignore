@@ -2,5 +2,16 @@
 *.o
 test_correctness
 bench_run
+bench_parallel
 bench/benchmark.png
 __pycache__/
+.venv/
+
+# Python packaging build artifacts
+build/
+dist/
+wheelhouse/
+*.egg-info/
+stabkernel/libstabkernel.so
+stabkernel/*.dylib
+stabkernel/*.dll

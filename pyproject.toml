@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stabkernel"
+version = "0.1.0"
+description = "SIMD + multi-core CPU kernels for GF(2) / stabilizer bit-linear-algebra (XOR, popcount-weight, mod-2 inner product, rank, four-Russians matmul)"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Ashitesh Singh", email = "ashitesh@nueralsearch.tech" }]
+keywords = [
+    "gf2", "stabilizer", "clifford", "quantum-computing", "linear-algebra",
+    "simd", "avx512", "avx2", "openmp", "popcount", "four-russians",
+    "bit-manipulation", "high-performance-computing",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: C",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+]
+dependencies = ["numpy>=1.21"]
+
+[project.urls]
+Homepage = "https://github.com/AshiteshSingh/stabkernel"
+Source = "https://github.com/AshiteshSingh/stabkernel"
+Issues = "https://github.com/AshiteshSingh/stabkernel/issues"
+
+[tool.setuptools]
+packages = ["stabkernel"]
+
+[tool.cibuildwheel]
+# Skip 32-bit, PyPy, and musllinux for the first release; add later if wanted.
+skip = ["*-win32", "*_i686", "pp*", "*-musllinux*"]
+build-verbosity = 1
+test-requires = "numpy"
+test-command = "python -m stabkernel"
+
+[tool.cibuildwheel.macos]
+# libomp gives the mac wheels real multi-core; without it they run single-thread.
+before-all = "brew install libomp || true"

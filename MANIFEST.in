@@ -1,0 +1,5 @@
+# Ship the native sources so `pip install` can build from an sdist.
+include README.md LICENSE Makefile
+recursive-include src *.c *.S
+recursive-include include *.h
+include pyproject.toml setup.py
