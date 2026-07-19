@@ -6,6 +6,7 @@ bench_parallel
 bench/benchmark.png
 __pycache__/
 .venv/
+venv/
 
 # Python packaging build artifacts
 build/

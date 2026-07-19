@@ -3,16 +3,30 @@
  *   *_avx512 : Skylake-X / Ice Lake / Zen4 / Zen5 (AVX-512F + VPOPCNTDQ)
  *   *_avx2   : Haswell+ / Zen1-3 (AVX2, software popcount via PSHUFB LUT)
  * System V AMD64 ABI: args rdi, rsi, rdx; return rax.
+ *
+ * Portable across ELF (Linux) and Mach-O (macOS): C symbol names are emitted
+ * with the platform's mangling via CSYM(), the read-only data section is
+ * selected per object format, and the ELF-only non-executable-stack note is
+ * guarded out on Apple.
  */
 #if defined(__x86_64__)
+
+#if defined(__APPLE__)
+#  define CSYM(x) _##x
+#  define RODATA_SECTION .section __TEXT,__const
+#else
+#  define CSYM(x) x
+#  define RODATA_SECTION .section .rodata
+#endif
+
 .intel_syntax noprefix
 .text
 
 /* ================= gf2_xor: dst[i] ^= src[i] ================= */
 
-.globl gf2_xor_avx512
+.globl CSYM(gf2_xor_avx512)
 .p2align 4
-gf2_xor_avx512:                 /* rdi=dst rsi=src rdx=nwords */
+CSYM(gf2_xor_avx512):           /* rdi=dst rsi=src rdx=nwords */
     xor     rax, rax
     mov     rcx, rdx
     shr     rcx, 3              /* blocks of 8 qwords (512b) */
@@ -38,9 +52,9 @@ gf2_xor_avx512:                 /* rdi=dst rsi=src rdx=nwords */
     vzeroupper
     ret
 
-.globl gf2_xor_avx2
+.globl CSYM(gf2_xor_avx2)
 .p2align 4
-gf2_xor_avx2:                   /* rdi=dst rsi=src rdx=nwords */
+CSYM(gf2_xor_avx2):             /* rdi=dst rsi=src rdx=nwords */
     xor     rax, rax
     mov     rcx, rdx
     shr     rcx, 2              /* blocks of 4 qwords (256b) */
@@ -68,9 +82,9 @@ gf2_xor_avx2:                   /* rdi=dst rsi=src rdx=nwords */
 
 /* ================= gf2_weight: sum popcount(a[i]) ================= */
 
-.globl gf2_weight_avx512
+.globl CSYM(gf2_weight_avx512)
 .p2align 4
-gf2_weight_avx512:             /* rdi=a rsi=nwords -> rax */
+CSYM(gf2_weight_avx512):       /* rdi=a rsi=nwords -> rax */
     vpxorq  zmm1, zmm1, zmm1
     xor     r9, r9
     mov     rcx, rsi
@@ -104,9 +118,9 @@ gf2_weight_avx512:             /* rdi=a rsi=nwords -> rax */
     vzeroupper
     ret
 
-.globl gf2_weight_avx2
+.globl CSYM(gf2_weight_avx2)
 .p2align 4
-gf2_weight_avx2:               /* rdi=a rsi=nwords -> rax */
+CSYM(gf2_weight_avx2):         /* rdi=a rsi=nwords -> rax */
     vmovdqa ymm7, [rip + .Lpopc_lut]
     vpbroadcastb ymm6, byte ptr [rip + .Lmask0f]
     vpxor   ymm5, ymm5, ymm5        /* qword accumulator */
@@ -149,9 +163,9 @@ gf2_weight_avx2:               /* rdi=a rsi=nwords -> rax */
 
 /* ================= gf2_inner: parity(popcount(a[i]&b[i])) ================= */
 
-.globl gf2_inner_avx512
+.globl CSYM(gf2_inner_avx512)
 .p2align 4
-gf2_inner_avx512:              /* rdi=a rsi=b rdx=nwords -> rax(0/1) */
+CSYM(gf2_inner_avx512):        /* rdi=a rsi=b rdx=nwords -> rax(0/1) */
     vpxorq  zmm1, zmm1, zmm1
     xor     r9, r9
     mov     rcx, rdx
@@ -189,9 +203,9 @@ gf2_inner_avx512:              /* rdi=a rsi=b rdx=nwords -> rax(0/1) */
     vzeroupper
     ret
 
-.globl gf2_inner_avx2
+.globl CSYM(gf2_inner_avx2)
 .p2align 4
-gf2_inner_avx2:                /* rdi=a rsi=b rdx=nwords -> rax(0/1) */
+CSYM(gf2_inner_avx2):          /* rdi=a rsi=b rdx=nwords -> rax(0/1) */
     vmovdqa ymm7, [rip + .Lpopc_lut]
     vpbroadcastb ymm6, byte ptr [rip + .Lmask0f]
     vpxor   ymm5, ymm5, ymm5
@@ -236,7 +250,7 @@ gf2_inner_avx2:                /* rdi=a rsi=b rdx=nwords -> rax(0/1) */
     vzeroupper
     ret
 
-.section .rodata
+RODATA_SECTION
 .p2align 5
 .Lpopc_lut:                     /* popcount of each nibble, replicated per 128b lane */
     .byte 0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4
@@ -244,6 +258,8 @@ gf2_inner_avx2:                /* rdi=a rsi=b rdx=nwords -> rax(0/1) */
 .Lmask0f:
     .byte 0x0f
 
-/* Mark stack non-executable */
+#if defined(__ELF__)
+/* Mark stack non-executable (ELF only). */
 .section .note.GNU-stack,"",@progbits
+#endif
 #endif /* __x86_64__ */

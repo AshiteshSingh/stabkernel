@@ -7,11 +7,40 @@ portable dispatch layer that picks the fastest implementation per CPU:
 |---|---|---|---|
 | Intel (Skylake-X, Ice/Sapphire Rapids), **AMD Zen4 / Zen5** | AVX-512 F + VPOPCNTDQ | `src/gf2_x86.S` | ✅ built & tested in CI sandbox |
 | Intel Haswell+, **AMD Zen1–Zen3** | AVX2 (+ PSHUFB popcount LUT) | `src/gf2_x86.S` | ✅ built & tested in CI sandbox |
-| ~~**Apple M1–M4**, AWS Graviton, other ARM64~~ | NEON (CNT / UADDLP) | `src/gf2_arm.S` | 🚫 **DISABLED** — code present but commented out; falls back to scalar on ARM until validated on-device |
+| **Apple M1–M4**, AWS Graviton, **Android arm64-v8a**, other ARM64 | NEON (CNT / UADDLP) | `src/gf2_arm.S` | ✅ built in CI (Linux/macOS/Android); validated on macOS arm64 runners |
+| **Android armeabi-v7a** (32-bit ARM) | portable C (`__builtin_popcountll`) | `src/gf2_scalar.c` | ✅ cross-built in CI |
 | anything else | portable C (`__builtin_popcountll`) | `src/gf2_scalar.c` | ✅ always available |
 
-Backend is chosen at load time via CPUID (x86) / baseline (aarch64), and can be
-pinned with `STABKERNEL_BACKEND=scalar|avx2|avx512|neon` for testing.
+Backend is chosen at load time via CPUID (x86) / baseline NEON (aarch64), and
+can be pinned with `STABKERNEL_BACKEND=scalar|avx2|avx512|neon` for testing.
+
+The `.S` kernels are assembled portably across ELF (Linux / Android) and Mach-O
+(macOS): C symbols are emitted with the platform's name-mangling and the
+non-executable-stack note is ELF-only, so the same source builds under gcc,
+Apple clang, MinGW, and the Android NDK with no per-platform edits.
+
+## Installation
+
+```sh
+pip install stabkernel
+```
+
+Requires Python ≥ 3.8 and numpy. On Linux / macOS this installs a prebuilt wheel
+(no compiler needed) where available; otherwise pip builds from the source
+distribution, which needs a C compiler with OpenMP (gcc or clang).
+
+**From source / for development:**
+
+```sh
+git clone https://github.com/AshiteshSingh/stabkernel.git
+cd stabkernel
+make              # builds libstabkernel.so + runs the correctness tests
+pip install -e .  # editable install of the Python package
+python -m stabkernel   # smoke test: prints backend, cores, and matmul: OK
+```
+
+Pin a backend with `STABKERNEL_BACKEND=scalar|avx2|avx512`, or cap threads with
+`OMP_NUM_THREADS=N`.
 
 ## Why these kernels are worth writing in assembly
 
@@ -159,7 +188,7 @@ sanity checks. On x86-64 all three backends report `ALL TESTS PASSED`.
 ## Python
 
 ```python
-import numpy as np, sys; sys.path.insert(0, "python")
+import numpy as np
 import stabkernel as sk
 
 a = np.random.default_rng().integers(0, 2**64, size=64, dtype=np.uint64)
@@ -170,6 +199,44 @@ print(sk.inner(a, b))   # GF(2) symplectic inner product (0/1)
 sk.xor_into(a, b)       # a ^= b, in place
 print(sk.rank(np.random.default_rng().integers(0, 2**64, size=(50,4), dtype=np.uint64)))
 ```
+
+## API reference
+
+All vectors are bit-packed `uint64` numpy arrays: a length-`nbits` GF(2) vector
+is `ceil(nbits/64)` little-endian words (see Bit-packing convention below).
+
+### Python (`import stabkernel as sk`)
+
+| Function | Signature | Returns | Description |
+|---|---|---|---|
+| `backend` | `sk.backend()` | `str` | Active backend: `'avx512'`, `'avx2'`, `'neon'`, or `'scalar'`. |
+| `num_threads` | `sk.num_threads()` | `int` | CPU cores the multi-core kernels will use. |
+| `weight` | `sk.weight(a)` | `int` | Total Hamming weight, the sum of popcounts. |
+| `inner` | `sk.inner(a, b)` | `int` | GF(2) symplectic inner product `parity(sum popcount(a & b))` — 0 or 1. |
+| `xor_into` | `sk.xor_into(dst, src)` | `array` | In-place `dst ^= src`; `dst` must be contiguous `uint64`. |
+| `rank` | `sk.rank(matrix)` | `int` | GF(2) rank of a 2D `(m x nwords)` bit-matrix. |
+| `matmul` | `sk.matmul(A, B, k)` | `array` | GF(2) matmul `C = A.B` (four-Russians, all cores). `A: (m, ceil(k/64))`, `B: (k, Bw)` -> `C: (m, Bw)`. |
+| `__version__` | `sk.__version__` | `str` | Package version. |
+
+Every function carries a docstring — run `help(stabkernel)` or `help(sk.matmul)`
+for details.
+
+### C / C++ (`#include "gf2kernel.h"`, link `-lstabkernel`)
+
+| Symbol | Signature | Description |
+|---|---|---|
+| `gf2_xor` | `void gf2_xor(uint64_t *dst, const uint64_t *src, size_t nwords)` | `dst[i] ^= src[i]` (runtime-dispatched). |
+| `gf2_inner` | `uint64_t gf2_inner(const uint64_t *a, const uint64_t *b, size_t nwords)` | Symplectic inner product -> 0/1. |
+| `gf2_weight` | `uint64_t gf2_weight(const uint64_t *a, size_t nwords)` | Hamming weight. |
+| `gf2_rank` | `size_t gf2_rank(uint64_t *rows, size_t m, size_t nwords)` | In-place GF(2) Gaussian elimination; returns rank. |
+| `gf2_matmul` | `void gf2_matmul(const uint64_t *A, size_t Aw, const uint64_t *B, size_t Bw, uint64_t *C, size_t m, size_t k)` | GF(2) matmul, four-Russians + OpenMP. |
+| `gf2_weight_many` | `void gf2_weight_many(const uint64_t *rows, size_t m, size_t nwords, uint64_t *out)` | Per-row weight, parallel. |
+| `gf2_xor_many` | `void gf2_xor_many(uint64_t *rows, size_t m, size_t nwords, const uint64_t *vec)` | `rows[i] ^= vec`, parallel. |
+| `stabkernel_backend` | `const char *stabkernel_backend(void)` | Active backend name. |
+| `stabkernel_init` | `void stabkernel_init(void)` | Force backend (re)detection. |
+| `stabkernel_num_threads` | `int stabkernel_num_threads(void)` | Threads OpenMP will use. |
+
+Full prototypes and semantics are documented in `include/gf2kernel.h`.
 
 ## Bit-packing convention
 

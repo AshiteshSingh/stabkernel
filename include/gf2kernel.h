@@ -22,18 +22,24 @@
 extern "C" {
 #endif
 
+#if defined(_WIN32) && (defined(__x86_64__) || defined(_M_X64)) && (defined(__GNUC__) || defined(__clang__))
+#define SYSV_ABI __attribute__((sysv_abi))
+#else
+#define SYSV_ABI
+#endif
+
 /* dst[i] ^= src[i] for i in [0,nwords). The GF(2) row-add / tableau
  * update / Pauli-frame propagation primitive. */
-typedef void (*gf2_xor_fn)(uint64_t *dst, const uint64_t *src, size_t nwords);
+typedef void (SYSV_ABI *gf2_xor_fn)(uint64_t *dst, const uint64_t *src, size_t nwords);
 
 /* Returns the GF(2) inner product <a,b> = parity( popcount(a[i] & b[i]) ),
  * i.e. 0 or 1. The symplectic/stabilizer commutation primitive. */
-typedef uint64_t (*gf2_inner_fn)(const uint64_t *a, const uint64_t *b,
+typedef uint64_t (SYSV_ABI *gf2_inner_fn)(const uint64_t *a, const uint64_t *b,
                                  size_t nwords);
 
 /* Returns the full Hamming weight sum_i popcount(a[i]). Used for Pauli
  * weight and stabilizer-Renyi / magic statistics. */
-typedef uint64_t (*gf2_weight_fn)(const uint64_t *a, size_t nwords);
+typedef uint64_t (SYSV_ABI *gf2_weight_fn)(const uint64_t *a, size_t nwords);
 
 /* Resolved function pointers (set by stabkernel_init, also lazily on first
  * use through the wrapper functions below). */

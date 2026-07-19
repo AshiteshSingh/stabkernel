@@ -25,6 +25,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
 ]
 dependencies = ["numpy>=1.21"]
 
@@ -46,3 +47,6 @@ test-command = "python -m stabkernel"
 [tool.cibuildwheel.macos]
 # libomp gives the mac wheels real multi-core; without it they run single-thread.
 before-all = "brew install libomp || true"
+
+[tool.cibuildwheel.windows]
+environment = { CC = "clang" }

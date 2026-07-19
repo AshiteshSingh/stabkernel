@@ -31,12 +31,17 @@ C_SOURCES = [
     "src/gf2_parallel.c",
 ]
 ASM_SOURCES_X86 = ["src/gf2_x86.S"]
+ASM_SOURCES_ARM = ["src/gf2_arm.S"]
 
 
 def _is_x86():
     return platform.machine().lower() in (
         "x86_64", "amd64", "x64", "i386", "i486", "i586", "i686",
     )
+
+
+def _is_arm64():
+    return platform.machine().lower() in ("aarch64", "arm64")
 
 
 class BinaryDistribution(Distribution):
@@ -110,6 +115,8 @@ class BuildNativeLib(build_ext):
         sources = [os.path.join(ROOT, s) for s in C_SOURCES]
         if _is_x86():
             sources += [os.path.join(ROOT, s) for s in ASM_SOURCES_X86]
+        elif _is_arm64():
+            sources += [os.path.join(ROOT, s) for s in ASM_SOURCES_ARM]
 
         cflags = ["-O3", "-Wall", "-Iinclude", "-fPIC"]
         ldflags = ["-dynamiclib"] if sys.platform == "darwin" else ["-shared"]

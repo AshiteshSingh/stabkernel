@@ -17,13 +17,8 @@ ifneq (,$(filter x86_64 amd64,$(ARCH)))
   ARCHNAME := x86-64 (AVX-512 / AVX2 / scalar)
 endif
 ifneq (,$(filter aarch64 arm64,$(ARCH)))
-  # ARM64 NEON kernels live in src/gf2_arm.S but are DISABLED for now
-  # (written, not yet validated on real ARM hardware). aarch64 currently
-  # builds scalar-only. To enable NEON: uncomment the ASM_SRC line below,
-  # re-enable the NEON branch in src/dispatch.c, then run `make test` on-device.
-  # ASM_SRC := src/gf2_arm.S
-  ASM_SRC :=
-  ARCHNAME := aarch64 (scalar only -- NEON commented out)
+  ASM_SRC := src/gf2_arm.S
+  ARCHNAME := aarch64 (NEON / scalar)
 endif
 ASM_SRC ?=
 ARCHNAME ?= $(ARCH) (scalar only)

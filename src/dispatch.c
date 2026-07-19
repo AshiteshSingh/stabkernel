@@ -10,29 +10,17 @@ uint64_t gf2_inner_scalar(const uint64_t *, const uint64_t *, size_t);
 uint64_t gf2_weight_scalar(const uint64_t *, size_t);
 
 #if defined(__x86_64__)
-void     gf2_xor_avx2(uint64_t *, const uint64_t *, size_t);
-void     gf2_xor_avx512(uint64_t *, const uint64_t *, size_t);
-uint64_t gf2_inner_avx2(const uint64_t *, const uint64_t *, size_t);
-uint64_t gf2_inner_avx512(const uint64_t *, const uint64_t *, size_t);
-uint64_t gf2_weight_avx2(const uint64_t *, size_t);
-uint64_t gf2_weight_avx512(const uint64_t *, size_t);
+void     SYSV_ABI gf2_xor_avx2(uint64_t *, const uint64_t *, size_t);
+void     SYSV_ABI gf2_xor_avx512(uint64_t *, const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_inner_avx2(const uint64_t *, const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_inner_avx512(const uint64_t *, const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_weight_avx2(const uint64_t *, size_t);
+uint64_t SYSV_ABI gf2_weight_avx512(const uint64_t *, size_t);
 #elif defined(__aarch64__)
-/* --- ARM64 / NEON backend TEMPORARILY DISABLED ---------------------------
- * The NEON kernels exist in src/gf2_arm.S but are not wired in: they were
- * written but could NOT be executed/validated in the x86 build sandbox
- * (no ARM emulator / cross-toolchain available). Until validated on real
- * ARM hardware, aarch64 builds run the portable scalar backend.
- *
- * To RE-ENABLE NEON:
- *   1. Uncomment the three extern declarations below.
- *   2. Uncomment the NEON selection branch further down in stabkernel_init().
- *   3. In the Makefile, restore `ASM_SRC := src/gf2_arm.S` for aarch64.
- *   4. Run `make test` on-device and confirm ALL TESTS PASSED.
- *
- * void     gf2_xor_neon(uint64_t *, const uint64_t *, size_t);
- * uint64_t gf2_inner_neon(const uint64_t *, const uint64_t *, size_t);
- * uint64_t gf2_weight_neon(const uint64_t *, size_t);
- */
+/* AArch64 / Apple-Silicon / Android-arm64 NEON backend (src/gf2_arm.S). */
+void     gf2_xor_neon(uint64_t *, const uint64_t *, size_t);
+uint64_t gf2_inner_neon(const uint64_t *, const uint64_t *, size_t);
+uint64_t gf2_weight_neon(const uint64_t *, size_t);
 #endif
 
 gf2_xor_fn    gf2_xor    = gf2_xor_scalar;
@@ -78,17 +66,12 @@ void stabkernel_init(void) {
         gf2_weight = gf2_weight_avx2; g_backend = "avx2";
     }
 #elif defined(__aarch64__)
-    /* ARM64 NEON backend DISABLED for now — falls through to scalar.
-     * See the note near the extern declarations above to re-enable.
-     *
-     * int want_neon = 1;                     // NEON is baseline on aarch64
-     * if (forced) want_neon = !strcmp(forced, "neon");
-     * if (want_neon) {
-     *     gf2_xor = gf2_xor_neon; gf2_inner = gf2_inner_neon;
-     *     gf2_weight = gf2_weight_neon; g_backend = "neon";
-     * }
-     */
-    (void)forced;
+    int want_neon = 1;                     /* NEON is baseline on aarch64 */
+    if (forced) want_neon = !strcmp(forced, "neon");
+    if (want_neon) {
+        gf2_xor = gf2_xor_neon; gf2_inner = gf2_inner_neon;
+        gf2_weight = gf2_weight_neon; g_backend = "neon";
+    }
 #endif
     if (forced && !strcmp(forced, "scalar")) {
         gf2_xor = gf2_xor_scalar; gf2_inner = gf2_inner_scalar;
