@@ -11,9 +11,9 @@ def main() -> None:
     print("stabkernel", sk.__version__)
     print("backend :", sk.backend())
     print("cores   :", sk.num_threads())
-    w_ref = int(sum(int(x).bit_count() for x in a))
+    w_ref = int(sum(bin(int(x)).count('1') for x in a))
     print("weight  :", sk.weight(a), "(ref", w_ref, ")")
-    i_ref = sum(int(x & y).bit_count() for x, y in zip(a, b)) & 1
+    i_ref = sum(bin(int(x & y)).count('1') for x, y in zip(a, b)) & 1
     print("inner   :", sk.inner(a, b), "(ref", i_ref, ")")
     M = rng.integers(0, 2**64, size=(50, 4), dtype=np.uint64)
     print("rank    :", sk.rank(M))

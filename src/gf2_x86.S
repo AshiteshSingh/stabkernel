@@ -14,6 +14,9 @@
 #if defined(__APPLE__)
 #  define CSYM(x) _##x
 #  define RODATA_SECTION .section __TEXT,__const
+#elif defined(_WIN32)
+#  define CSYM(x) x
+#  define RODATA_SECTION .section .rdata,"dr"
 #else
 #  define CSYM(x) x
 #  define RODATA_SECTION .section .rodata

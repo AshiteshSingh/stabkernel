@@ -103,9 +103,9 @@ if __name__ == "__main__":
     b = rng.integers(0, 2**64, size=100, dtype=np.uint64)
     print("backend:", backend())
     print("weight :", weight(a), "(numpy check:",
-          int(sum(int(x).bit_count() for x in a)), ")")
+          int(sum(bin(int(x)).count('1') for x in a)), ")")
     print("inner  :", inner(a, b), "(numpy check:",
-          sum(int(x & y).bit_count() for x, y in zip(a, b)) & 1, ")")
+          sum(bin(int(x & y)).count('1') for x, y in zip(a, b)) & 1, ")")
     M = rng.integers(0, 2**64, size=(50, 4), dtype=np.uint64)
     print("rank   :", rank(M))
     print("cores  :", num_threads())
